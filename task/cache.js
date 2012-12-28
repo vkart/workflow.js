@@ -28,15 +28,29 @@ util.extend (cacheTask.prototype, {
      */
 	generateCacheFileName: function () {
 
-		if (this.cacheFileName)
-			return this.cacheFileName;
-
-		var shasum = crypto.createHash('sha1');
-		shasum.update(this.url.href);
-		this.cacheFile = project.root.file_io (cachePath, shasum.digest('hex'));
-		this.cacheFileName = this.cacheFile.path;
+		if (!this.cacheFileName) {
+			var shasum = crypto.createHash('sha1');
+			shasum.update(this.url.href);
+			this.cacheFile = project.root.file_io (cachePath, shasum.digest('hex'));
+			this.cacheFileName = this.cacheFile.path;
+		} else if (!this.cacheFile) {
+			this.cacheFile = project.root.file_io (cachePath, this.cacheFileName);
+			this.cacheFileName = this.cacheFile.path;
+		}
 
 		return this.cacheFileName;
+	},
+
+	getFileName : function (fname) {
+		var self = this;
+		var pos = fname.indexOf(cachePath);
+		if (pos > -1) {
+			fname = fname.substr(pos + cachePath.length + 1);
+		}
+
+		console.log('CACHE PATH', cachePath, self.cacheFileName, fname);
+		return fname;
+
 	}
 });
 
@@ -89,7 +103,8 @@ util.extend (cacheTask.prototype, {
 					delete project.caching[self.cacheFileName];
 					// self.res.cacheFileName = self.cacheFileName
 					// self.completed (self.res);
-					self.completed (self.cacheFileName);
+
+					self.completed (self.getFileName(self.cacheFileName));
 				});
 			});
 
@@ -102,10 +117,10 @@ util.extend (cacheTask.prototype, {
 
 		if (anotherTask && anotherTask != self) {
 
-			this.emit ('log', 'another process already downloading ' + this.url.href + ' to ' + this.cacheFileName);
+			this.emit ('log', 'another process already downloading ' + this.url.href + ' to ' + self.getFileName(this.cacheFileName));
 			// we simply wait for another task
 			anotherTask.on ('complete', function () {
-				self.completed (self.cacheFileName);
+				self.completed (self.getFileName(cacheFileName));
 			});
 			anotherTask.on ('error', function (e) {
 				self.emitError(e);
@@ -123,7 +138,7 @@ util.extend (cacheTask.prototype, {
 
 				self.emit ('log', 'file already downloaded from ' + self.url.href + ' to ' + self.cacheFileName);
 				delete project.caching[self.cacheFileName];
-				self.completed (self.cacheFileName);
+				self.completed (self.getFileName(self.cacheFileName));
 
 				return;
 			}
